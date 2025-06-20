@@ -59,6 +59,7 @@ export function UserNav() {
 }, []);
 
 const handlelogout = () => {
+  localStorage.removeItem('token');
   router.push('/');
 }
 

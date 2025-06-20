@@ -1,19 +1,20 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ModeToggle } from "@/components/mode-toggle"
 import { SearchBar } from "@/components/search-bar"
 import { UserNav } from "@/components/user-nav"
-import { useUser } from "@/contexts/user-context"
 import { PenTool, BookOpen, TrendingUp, Plus, LogIn } from "lucide-react"
 
 export function Header() {
-  const { isLoggedIn } = useUser()
-  
-  // Check for JWT token in localStorage or context
-  const hasToken = typeof window !== 'undefined' ? !!localStorage.getItem('token') : false
-  const isAuthenticated = isLoggedIn && hasToken
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    setIsAuthenticated(!!token)
+  }, [])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">

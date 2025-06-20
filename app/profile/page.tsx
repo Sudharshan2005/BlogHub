@@ -1,11 +1,10 @@
 "use client"
 
 import type React from "react"
-
-import { useState, useEffect  } from "react"
+import { useState, useEffect } from "react"
 import { useUser } from "@/contexts/user-context"
 import { Header } from "@/components/header"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,8 +13,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
 import { Camera, Save } from "lucide-react"
 import mongoose from "mongoose"
+import Link from "next/link"
 
 interface User {
+  _id: string;
+  id: string;
   name: string;
   email: string;
   password?: string;
@@ -31,51 +33,101 @@ interface User {
 }
 
 export default function ProfilePage() {
-  const { user, setUser, isLoggedIn } = useUser()
-  const [userDetails, setUserDetails] = useState<User>();
+  // const { user, setUser, isLoggedIn } = useUser()
+  const [userDetails, setUserDetails] = useState<User | null>(null)
   const { toast } = useToast()
-
   const [editing, setEditing] = useState(false)
   const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    bio: user?.bio || "",
-    avatar: user?.avatar || "",
+    name: "",
+    email: "",
+    bio: "",
+    avatar: "",
   })
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    setIsAuthenticated(!!token)
+  }, [])
 
   useEffect(() => {
     const fetchData = async () => {
-        const token = localStorage.getItem('token');
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.error('No token found in localStorage')
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please log in to view your profile.",
+        })
+        return
+      }
 
-        if (!token) {
-            console.error('No token found in localStorage');
-            return;
-        }
+      try {
         const res = await fetch('/api/user/fetch', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
 
-        const data = await res.json();
-        setUserDetails(data.user);
-    };
+        if (!res.ok) {
+          throw new Error('Failed to fetch user data')
+        }
 
-    fetchData();
-}, []);
+        const data = await res.json()
+        setUserDetails(data.user)
+        setFormData({
+          name: data.user.name || "",
+          email: data.user.email || "",
+          bio: data.user.bio || "",
+          avatar: data.user.avatar || "",
+        })
+      } catch (error) {
+        console.error('Error fetching user:', error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load user data. Please try again.",
+        })
+      }
+    }
 
-  const handleSave = () => {
-    if (user) {
-      const updatedUser = { ...user, ...formData }
-      setUser(updatedUser)
-      localStorage.setItem("user", JSON.stringify(updatedUser))
+    if (isAuthenticated) {
+      fetchData()
+    }
+  }, [isAuthenticated, toast])
 
-      toast({
-        title: "Profile updated",
-        description: "Your profile has been successfully updated.",
+  const handleSave = async () => {
+    if (!userDetails) return
+
+    try {
+      const res = await fetch('/api/user/edit', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: userDetails._id, ...formData }),
       })
+
+      if (!res.ok) {
+        console.log(userDetails._id);
+        const errorData = await res.json()
+        throw new Error(errorData.message || "An error occurred")
+      }
+
+      const data = await res.json()
+      setUserDetails(data.user)
       setEditing(false)
+      toast({
+        title: "Success",
+        description: "Profile updated successfully.",
+      })
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "An unknown error occurred",
+      })
     }
   }
 
@@ -91,12 +143,23 @@ export default function ProfilePage() {
     }
   }
 
-  if (!isLoggedIn) {
+  if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container mx-auto px-4 py-8 text-center">
           <h1 className="text-2xl font-bold mb-4">Please log in to view your profile</h1>
+        </main>
+      </div>
+    )
+  }
+
+  if (!userDetails) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header />
+        <main className="container mx-auto px-4 py-8 text-center">
+          <h1 className="text-2xl font-bold mb-4">Loading profile...</h1>
         </main>
       </div>
     )
@@ -112,7 +175,16 @@ export default function ProfilePage() {
             <Button onClick={() => setEditing(true)}>Edit Profile</Button>
           ) : (
             <div className="space-x-2">
-              <Button variant="outline" onClick={() => setEditing(false)}>
+              <Button variant="outline" onClick={() => {
+                setEditing(false)
+                // Reset formData to original userDetails
+                setFormData({
+                  name: userDetails.name || "",
+                  email: userDetails.email || "",
+                  bio: userDetails.bio || "",
+                  avatar: userDetails.avatar || "",
+                })
+              }}>
                 Cancel
               </Button>
               <Button onClick={handleSave}>
@@ -133,8 +205,10 @@ export default function ProfilePage() {
                 <div className="flex items-center space-x-4">
                   <div className="relative">
                     <Avatar className="h-20 w-20">
-                      <AvatarImage src={userDetails?.avatar || "/placeholder.svg"} />
-                      <AvatarFallback className="text-lg">{userDetails?.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      <AvatarImage src={formData.avatar || "/placeholder.svg"} />
+                      <AvatarFallback className="text-lg">
+                        {formData.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
                     </Avatar>
                     {editing && (
                       <label className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1 cursor-pointer">
@@ -144,8 +218,8 @@ export default function ProfilePage() {
                     )}
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold">{userDetails?.name || "Unknown"}</h3>
-                    <p className="text-muted-foreground">{userDetails?.email || "Error"}</p>
+                    <h3 className="text-lg font-semibold">{formData.name || "Unknown"}</h3>
+                    <p className="text-muted-foreground">{formData.email || "Error"}</p>
                   </div>
                 </div>
 
@@ -154,7 +228,7 @@ export default function ProfilePage() {
                     <Label htmlFor="name">Full Name</Label>
                     <Input
                       id="name"
-                      value={userDetails?.name || "Unknown"}
+                      value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                       disabled={!editing}
                     />
@@ -164,7 +238,7 @@ export default function ProfilePage() {
                     <Input
                       id="email"
                       type="email"
-                      value={userDetails?.email || "Error"}
+                      value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       disabled={!editing}
                     />
@@ -175,7 +249,7 @@ export default function ProfilePage() {
                   <Label htmlFor="bio">Bio</Label>
                   <Textarea
                     id="bio"
-                    value={userDetails?.bio || ""}
+                    value={formData.bio}
                     onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     placeholder="Tell us about yourself..."
                     rows={4}
@@ -207,7 +281,7 @@ export default function ProfilePage() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Followers</span>
-                    <span className="font-semibold">156</span>
+                    <span className="font-semibold">{userDetails.followers.length}</span>
                   </div>
                 </div>
               </CardContent>
@@ -219,8 +293,8 @@ export default function ProfilePage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground mb-4">Your public profile is visible to all readers.</p>
-                <Button variant="outline" className="w-full">
-                  View Public Profile
+                <Button variant="outline" className="w-full" asChild>
+                  <Link href={`/profile/${userDetails.id}`}>View Public Profile</Link>
                 </Button>
               </CardContent>
             </Card>
