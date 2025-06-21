@@ -8,124 +8,133 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardHeader } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { useToast } from "@/hooks/use-toast"
 import { formatDistanceToNow } from "date-fns"
 import { Heart, Share2, Bookmark, Eye, Clock } from "lucide-react"
 import { CommentSection } from "@/components/comment-section"
 import Image from "next/image"
 
 interface BlogPost {
-  id: string
-  title: string
-  content: string
-  excerpt: string
-  author: {
+    _id: string
     id: string
-    name: string
-    avatar?: string
-    bio?: string
-  }
-  createdAt: string
-  updatedAt: string
-  tags: string[]
-  category: string
-  views: number
-  likes: number
-  readTime: number
-  image?: string
+    title: string
+    author: string
+    excerpt: string
+    content: string
+    createdAt: string
+    views: number
+    likes: number
+    comments: number
+    readTime: number
+    published: boolean
+    status: "published" | "draft" | "scheduled"
+    scheduledFor?: string
+    images: string[]
+    tags: string[]
 }
 
-// Mock blog data
-const mockBlogData: { [key: string]: BlogPost } = {
-  "1": {
-    id: "1",
-    title: "The Future of Web Development: Trends to Watch in 2024",
-    content: `
-      <h2>Introduction</h2>
-      <p>The web development landscape is constantly evolving, and 2024 promises to bring exciting new trends and technologies that will shape how we build applications. From AI integration to new frameworks, let's explore what's on the horizon.</p>
-      
-      <h2>AI-Powered Development</h2>
-      <p>Artificial Intelligence is revolutionizing how we write code. Tools like GitHub Copilot and ChatGPT are becoming essential parts of the developer toolkit, helping with everything from code generation to debugging and documentation.</p>
-      
-      <h2>Server Components and Edge Computing</h2>
-      <p>React Server Components are changing how we think about rendering and data fetching. Combined with edge computing platforms, we can deliver faster, more efficient applications that run closer to our users.</p>
-      
-      <h2>WebAssembly Growth</h2>
-      <p>WebAssembly continues to gain traction, allowing developers to run high-performance applications in the browser using languages like Rust, C++, and Go. This opens up new possibilities for web applications.</p>
-      
-      <h2>Conclusion</h2>
-      <p>The future of web development is bright, with new tools and technologies making it easier than ever to build amazing user experiences. Stay curious and keep learning!</p>
-    `,
-    excerpt:
-      "Explore the latest trends shaping the future of web development, from AI integration to new frameworks and tools that are revolutionizing how we build applications.",
-    author: {
-      id: "1",
-      name: "Sarah Johnson",
-      avatar: "/placeholder.svg?height=40&width=40",
-      bio: "Senior Frontend Developer with 8+ years of experience building scalable web applications. Passionate about React, TypeScript, and developer experience.",
-    },
-    createdAt: "2024-01-15T10:00:00Z",
-    updatedAt: "2024-01-15T10:00:00Z",
-    tags: ["Web Development", "Technology", "AI"],
-    category: "Technology",
-    views: 1520,
-    likes: 245,
-    readTime: 8,
-    image: "/placeholder.svg?height=400&width=800",
-  },
-  "2": {
-    id: "2",
-    title: "Building Scalable React Applications: Best Practices",
-    content: `
-      <h2>Project Structure</h2>
-      <p>A well-organized project structure is the foundation of any scalable React application. We'll explore folder organization, component hierarchy, and file naming conventions.</p>
-      
-      <h2>State Management</h2>
-      <p>Choosing the right state management solution is crucial. We'll compare Redux, Zustand, and React Context to help you make the best choice for your project.</p>
-      
-      <h2>Performance Optimization</h2>
-      <p>Learn about React.memo, useMemo, useCallback, and other optimization techniques to keep your application fast as it grows.</p>
-      
-      <h2>Testing Strategies</h2>
-      <p>Implement comprehensive testing with Jest, React Testing Library, and Cypress to ensure your application remains reliable.</p>
-    `,
-    excerpt:
-      "Learn how to structure and build React applications that can scale with your business needs. Discover patterns, tools, and techniques used by top companies.",
-    author: {
-      id: "2",
-      name: "Michael Chen",
-      avatar: "/placeholder.svg?height=40&width=40",
-      bio: "Full-stack developer and React enthusiast. Building scalable applications at a Fortune 500 company.",
-    },
-    createdAt: "2024-01-12T14:30:00Z",
-    updatedAt: "2024-01-12T14:30:00Z",
-    tags: ["React", "JavaScript", "Architecture"],
-    category: "Programming",
-    views: 980,
-    likes: 189,
-    readTime: 12,
-    image: "/placeholder.svg?height=400&width=800",
-  },
+interface User {
+  _id: string;
+  id: string;
+  name: string;
+  email: string;
+  password?: string;
+  avatar: string;
+  bio: string;
+  googleId?: string;
+  githubId?: string;
+  isVerified: boolean;
 }
 
 export default function BlogPostPage() {
   const params = useParams()
+  const { toast } = useToast()
   const [blog, setBlog] = useState<BlogPost | null>(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
+  const [userDetails, setUserDetails] = useState<User | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  
+    useEffect(() => {
+      const token = localStorage.getItem('token')
+      setIsAuthenticated(!!token)
+    }, [])
+  
+    useEffect(() => {
+      const fetchData = async () => {
+        try {
+          const res = await fetch(`/api/user/${blog?.author}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' },
+          })
+  
+          if (!res.ok) {
+            throw new Error('Failed to fetch user data')
+          }
+  
+          const data = await res.json()
+          setUserDetails(data.user)
+        } catch (error) {
+          console.error('Error fetching user:', error)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load user data. Please try again.",
+          })
+        }
+      }
+  
+      if (isAuthenticated) {
+        fetchData()
+      }
+    }, [blog])
 
   useEffect(() => {
-    if (params.id) {
-      // Simulate API call
-      setTimeout(() => {
-        const blogData = mockBlogData[params.id as string]
-        if (blogData) {
-          setBlog(blogData)
-        }
+    const fetchBlog = async () => {
+      if (!params?.id) {
+        console.error('No blog ID provided in params')
         setLoading(false)
-      }, 1000)
+        toast({
+          title: "Error",
+          description: "Invalid blog ID.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      try {
+        setLoading(true)
+        const res = await fetch(`/api/blog/${params.id}`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json()
+          throw new Error(`Failed to fetch blog: ${res.status} - ${errorData.message || 'Unknown error'}`)
+        }
+
+        const data = await res.json()
+        if (!data.blog) {
+          throw new Error('No blog data found in response')
+        }
+        setBlog(data.blog)
+      } catch (error) {
+        console.error('Error fetching blog:', error)
+        setBlog(null)
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Failed to fetch blog. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
     }
-  }, [params.id])
+
+    fetchBlog()
+  }, [params?.id, toast])
 
   const handleLike = () => {
     if (!blog) return
@@ -141,13 +150,16 @@ export default function BlogPostPage() {
   }
 
   const handleShare = () => {
+    if (!blog) return
     if (navigator.share) {
       navigator.share({
-        title: blog?.title,
+        title: blog.title,
         url: window.location.href,
-      })
+      }).catch(error => console.error('Error sharing:', error))
     } else {
       navigator.clipboard.writeText(window.location.href)
+        .then(() => toast({ title: "Link Copied", description: "Blog URL copied to clipboard." }))
+        .catch(error => console.error('Error copying link:', error))
     }
   }
 
@@ -183,11 +195,10 @@ export default function BlogPostPage() {
       <Header />
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         <article className="space-y-8">
-          {/* Header */}
           <header className="space-y-6">
-            {blog.image && (
+            {blog.images && (
               <div className="relative h-64 md:h-96 w-full rounded-lg overflow-hidden">
-                <Image src={blog.image || "/placeholder.svg"} alt={blog.title} fill className="object-cover" />
+                <Image src={blog.images[0] || "/placeholder.svg"} alt={blog.title} fill className="object-cover" />
               </div>
             )}
 
@@ -204,11 +215,11 @@ export default function BlogPostPage() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={blog.author.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{blog.author.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={userDetails?.avatar || "/placeholder.svg"} />
+                  <AvatarFallback>{userDetails?.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold">{blog.author.name}</p>
+                  <p className="font-semibold">{userDetails?.name}</p>
                   <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                     <span>{formatDistanceToNow(new Date(blog.createdAt), { addSuffix: true })}</span>
                     <span className="flex items-center">
@@ -247,24 +258,22 @@ export default function BlogPostPage() {
 
           <Separator />
 
-          {/* Content */}
           <div className="prose prose-lg max-w-none dark:prose-invert">
             <div dangerouslySetInnerHTML={{ __html: blog.content }} />
           </div>
 
           <Separator />
 
-          {/* Author Bio */}
           <Card>
             <CardHeader>
               <div className="flex items-start space-x-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={blog.author.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{blog.author.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={userDetails?.avatar || "/placeholder.svg"} />
+                  <AvatarFallback>{userDetails?.name.charAt(0) || "P"}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{blog.author.name}</h3>
-                  <p className="text-muted-foreground mt-1">{blog.author.bio || "Passionate writer and blogger"}</p>
+                  <h3 className="text-lg font-semibold">{userDetails?.name || "Unknown User"}</h3>
+                  <p className="text-muted-foreground mt-1">{userDetails?.bio || "Passionate writer and blogger"}</p>
                   <Button variant="outline" size="sm" className="mt-3">
                     Follow
                   </Button>
@@ -273,7 +282,6 @@ export default function BlogPostPage() {
             </CardHeader>
           </Card>
 
-          {/* Comments */}
           <CommentSection blogId={blog.id} />
         </article>
       </main>

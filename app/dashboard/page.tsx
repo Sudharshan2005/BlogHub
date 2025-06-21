@@ -1,7 +1,7 @@
 "use client"
 
 import { useUser } from "@/contexts/user-context"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/header"
@@ -9,8 +9,10 @@ import { StatsCards } from "@/components/stats-cards"
 import { RecentActivity } from "@/components/recent-activity"
 import { BlogManagement } from "@/components/blog-management"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
 import { Plus, Eye, Heart, BarChart3 } from "lucide-react"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import mongoose from "mongoose"
 
 interface DashboardStats {
   totalBlogs: number
@@ -20,6 +22,7 @@ interface DashboardStats {
 }
 
 interface Blog {
+  _id: string
   id: string
   title: string
   excerpt: string
@@ -32,56 +35,156 @@ interface Blog {
   scheduledFor?: string
 }
 
-// Mock data
-const mockStats: DashboardStats = {
-  totalBlogs: 12,
-  totalViews: 4520,
-  totalLikes: 892,
-  totalComments: 156,
+interface User {
+  _id: string
+  id: string
+  name: string
+  email: string
+  password?: string
+  avatar: string
+  bio: string
+  googleId?: string
+  githubId?: string
+  isVerified: boolean
+  followers: mongoose.Types.ObjectId[]
+  following: mongoose.Types.ObjectId[]
+  bookmarks: mongoose.Types.ObjectId[]
+  comparePassword(candidatePassword: string): Promise<boolean>
 }
-
-const mockBlogs: Blog[] = [
-  {
-    id: "1",
-    title: "Getting Started with Next.js 14",
-    excerpt: "Learn the latest features in Next.js 14 including the App Router and Server Components.",
-    createdAt: "2024-01-15T10:00:00Z",
-    views: 1520,
-    likes: 245,
-    comments: 32,
-    published: true,
-    status: "published",
-  },
-  {
-    id: "2",
-    title: "TypeScript Best Practices",
-    excerpt: "A comprehensive guide to writing better TypeScript code.",
-    createdAt: "2024-01-12T14:30:00Z",
-    views: 980,
-    likes: 189,
-    comments: 24,
-    published: false,
-    status: "draft",
-  },
-  {
-    id: "3",
-    title: "React Performance Optimization",
-    excerpt: "Tips and tricks to make your React applications faster.",
-    createdAt: "2024-01-10T09:15:00Z",
-    views: 742,
-    likes: 156,
-    comments: 18,
-    published: true,
-    status: "published",
-  },
-]
 
 export default function DashboardPage() {
   const { user, isLoggedIn } = useUser()
-  const [stats, setStats] = useState<DashboardStats>(mockStats)
-  const [blogs, setBlogs] = useState<Blog[]>(mockBlogs)
+  const [stats, setStats] = useState<DashboardStats>({
+    totalBlogs: 0,
+    totalViews: 0,
+    totalLikes: 0,
+    totalComments: 0,
+  })
+  const [blogs, setBlogs] = useState<Blog[]>([])
   const [loading, setLoading] = useState(false)
   const [filter, setFilter] = useState<"all" | "published" | "draft" | "scheduled">("all")
+  const [userDetails, setUserDetails] = useState<User | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const { toast } = useToast()
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    setIsAuthenticated(!!token)
+  }, [])
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        console.error('No token found in localStorage')
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please log in to view your profile.",
+        })
+        return
+      }
+
+      try {
+        const res = await fetch('/api/user/fetch', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch user data')
+        }
+
+        const data = await res.json()
+        setUserDetails(data.user)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load user data. Please try again.",
+        })
+      }
+    }
+
+    if (isAuthenticated) {
+      fetchData()
+    }
+  }, [isAuthenticated, toast])
+
+  useEffect(() => {
+    const fetchBlogs = async () => {
+      try {
+        if (!userDetails) {
+          console.error("User details are not available")
+          return
+        }
+        setLoading(true)
+        const token = localStorage.getItem('token')
+        if (!token) {
+          console.error('No token found')
+          toast({ title: 'Error', description: 'Please log in again.', variant: 'destructive' })
+          return
+        }
+        const res = await fetch(`/api/blog/fetch/${userDetails._id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (res.status === 404) {
+          console.log('No blogs found for user')
+          setBlogs([])
+          setStats({ totalBlogs: 0, totalViews: 0, totalLikes: 0, totalComments: 0 })
+          return
+        }
+        if (!res.ok) {
+          const errorData = await res.json()
+          throw new Error(`Failed to fetch blogs: ${res.status} - ${errorData.message}`)
+        }
+
+        const data = await res.json()
+        const fetchedBlogs = data.blogs.map((post: any) => ({
+          _id: post._id,
+          id: post._id,
+          title: post.title,
+          excerpt: post.excerpt,
+          createdAt: post.createdAt,
+          views: post.views || 0,
+          likes: post.likes?.length || 0,
+          comments: post.comments || 0,
+          published: post.published,
+          status: post.published ? 'published' : post.scheduledFor ? 'scheduled' : 'draft',
+          scheduledFor: post.scheduledFor,
+        }))
+        setBlogs(fetchedBlogs)
+        const stats: DashboardStats = {
+          totalBlogs: fetchedBlogs.length,
+          totalViews: fetchedBlogs.reduce((sum: number, blog: Blog) => sum + blog.views, 0),
+          totalLikes: fetchedBlogs.reduce((sum: number, blog: Blog) => sum + blog.likes, 0),
+          totalComments: fetchedBlogs.reduce((sum: number, blog: Blog) => sum + blog.comments, 0),
+        }
+        setStats(stats)
+      } catch (error) {
+        console.error('Error fetching blogs:', error)
+        toast({
+          title: "Error",
+          description: (error instanceof Error ? error.message : "Failed to load blogs. Please try again."),
+          variant: "destructive",
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (isAuthenticated && userDetails) {
+      fetchBlogs()
+    }
+  }, [isAuthenticated, userDetails, toast])
 
   const filteredBlogs = blogs.filter((blog) => {
     if (filter === "all") return true
@@ -106,7 +209,7 @@ export default function DashboardPage() {
       <main className="container mx-auto px-4 py-8">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Welcome back, {user?.name || "Guest"}!</h1>
+            <h1 className="text-3xl font-bold">Welcome back, {userDetails?.name || "Guest"}!</h1>
             <p className="text-muted-foreground">Here's what's happening with your blog</p>
           </div>
           <Button asChild>
@@ -137,7 +240,7 @@ export default function DashboardPage() {
                   <CardContent>
                     <div className="space-y-4">
                       {blogs.slice(0, 5).map((blog) => (
-                        <div key={blog.id} className="border-b pb-4 last:border-b-0">
+                        <div key={blog._id} className="border-b pb-4 last:border-b-0">
                           <h3 className="font-semibold hover:text-primary cursor-pointer">{blog.title}</h3>
                           <p className="text-sm text-muted-foreground mt-1">{blog.excerpt}</p>
                           <div className="flex items-center space-x-4 mt-2 text-xs text-muted-foreground">
@@ -204,7 +307,7 @@ export default function DashboardPage() {
                       .sort((a, b) => b.views - a.views)
                       .slice(0, 5)
                       .map((blog, index) => (
-                        <div key={blog.id} className="flex items-center justify-between">
+                        <div key={blog._id} className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">
                             <span className="text-sm font-medium text-muted-foreground">#{index + 1}</span>
                             <span className="font-medium text-sm">{blog.title}</span>

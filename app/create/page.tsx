@@ -15,6 +15,10 @@ import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { X, Save, Eye, Send, Calendar } from "lucide-react"
 
+interface User {
+  _id: string;
+}
+
 export default function CreateBlogPage() {
   const { user, isLoggedIn } = useUser()
   const { toast } = useToast()
@@ -30,6 +34,55 @@ export default function CreateBlogPage() {
   const [isScheduled, setIsScheduled] = useState(false)
   const [scheduledDate, setScheduledDate] = useState("")
   const [slug, setSlug] = useState("")
+  const [userDetails, setUserDetails] = useState<User | null>(null)
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+
+  useEffect(() => {
+      const token = localStorage.getItem('token')
+      setIsAuthenticated(!!token)
+    }, [])
+  
+    useEffect(() => {
+      const fetchData = async () => {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          console.error('No token found in localStorage')
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Please log in to view your profile.",
+          })
+          return
+        }
+  
+        try {
+          const res = await fetch('/api/user/fetch', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+            },
+          })
+  
+          if (!res.ok) {
+            throw new Error('Failed to fetch user data')
+          }
+  
+          const data = await res.json()
+          setUserDetails(data.user)
+        } catch (error) {
+          console.error('Error fetching user:', error)
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Failed to load user data. Please try again.",
+          })
+        }
+      }
+  
+      if (isAuthenticated) {
+        fetchData()
+      }
+    }, [isAuthenticated, toast])
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -103,7 +156,6 @@ export default function CreateBlogPage() {
     setLoading(true)
 
     try {
-      // Simulate API call
       const blogData = {
         title,
         excerpt,
@@ -116,13 +168,22 @@ export default function CreateBlogPage() {
         scheduledFor: isScheduled ? scheduledDate : null,
         createdAt: new Date().toISOString(),
       }
-
-      // Save to localStorage for demo
+      console.log(blogData);
+      
       const existingBlogs = JSON.parse(localStorage.getItem("user-blogs") || "[]")
       const newBlog = { ...blogData, id: Date.now().toString() }
       localStorage.setItem("user-blogs", JSON.stringify([newBlog, ...existingBlogs]))
 
-      // Clear draft
+      const res = await fetch('/api/blog/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author: userDetails?._id || "", ...blogData })
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to create blog');
+      }
+      
       localStorage.removeItem("blog-draft")
 
       toast({
