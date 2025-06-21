@@ -14,81 +14,64 @@ import { Heart, Share2, Bookmark, Eye, Clock } from "lucide-react"
 import { CommentSection } from "@/components/comment-section"
 import Image from "next/image"
 
-interface BlogPost {
-    _id: string
-    id: string
-    title: string
-    author: string
-    excerpt: string
-    content: string
-    createdAt: string
-    views: number
-    likes: number
-    comments: number
-    readTime: number
-    published: boolean
-    status: "published" | "draft" | "scheduled"
-    scheduledFor?: string
-    images: string[]
-    tags: string[]
-}
 
-interface User {
+interface IAuthor {
   _id: string;
-  id: string;
   name: string;
   email: string;
-  password?: string;
+  password: string;
   avatar: string;
   bio: string;
-  googleId?: string;
-  githubId?: string;
   isVerified: boolean;
+  followers: string[];
+  following: string[];
+  bookmarks: string[];
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
 }
+
+interface IBlog {
+  seo: {
+    keywords: string[];
+  };
+  comments: number;
+  _id: string;
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  author: IAuthor;
+  tags: string[];
+  category: string;
+  published: boolean;
+  scheduledFor: string | null;
+  views: number;
+  readTime: number;
+  featured: boolean;
+  createdAt: string;
+  images: string[];
+  likes: string[];
+  updatedAt: string;
+  publishedAt: string;
+  __v: number;
+}
+
 
 export default function BlogPostPage() {
   const params = useParams()
   const { toast } = useToast()
-  const [blog, setBlog] = useState<BlogPost | null>(null)
+  const [blog, setBlog] = useState<IBlog | null>(null)
   const [loading, setLoading] = useState(true)
   const [liked, setLiked] = useState(false)
   const [bookmarked, setBookmarked] = useState(false)
-  const [userDetails, setUserDetails] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   
     useEffect(() => {
-      const token = localStorage.getItem('token')
+      const token = sessionStorage.getItem('token')
       setIsAuthenticated(!!token)
     }, [])
   
-    useEffect(() => {
-      const fetchData = async () => {
-        try {
-          const res = await fetch(`/api/user/${blog?.author}`, {
-            method: 'GET',
-            headers: { 'Content-Type': 'application/json' },
-          })
-  
-          if (!res.ok) {
-            throw new Error('Failed to fetch user data')
-          }
-  
-          const data = await res.json()
-          setUserDetails(data.user)
-        } catch (error) {
-          console.error('Error fetching user:', error)
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to load user data. Please try again.",
-          })
-        }
-      }
-  
-      if (isAuthenticated) {
-        fetchData()
-      }
-    }, [blog])
 
   useEffect(() => {
     const fetchBlog = async () => {
@@ -136,14 +119,14 @@ export default function BlogPostPage() {
     fetchBlog()
   }, [params?.id, toast])
 
-  const handleLike = () => {
-    if (!blog) return
-    setLiked(!liked)
-    setBlog({
-      ...blog,
-      likes: liked ? blog.likes - 1 : blog.likes + 1,
-    })
-  }
+  // const handleLike = () => {
+  //   if (!blog) return
+  //   setLiked(!liked)
+  //   setBlog({
+  //     ...blog,
+  //     likes: liked ? blog.likes - 1 : blog.likes + 1,
+  //   })
+  // }
 
   const handleBookmark = () => {
     setBookmarked(!bookmarked)
@@ -215,11 +198,11 @@ export default function BlogPostPage() {
             <div className="flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center space-x-4">
                 <Avatar className="h-12 w-12">
-                  <AvatarImage src={userDetails?.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{userDetails?.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={blog.author.avatar || "/placeholder.svg"} />
+                  <AvatarFallback>{blog.author.name.charAt(0)}</AvatarFallback>
                 </Avatar>
                 <div>
-                  <p className="font-semibold">{userDetails?.name}</p>
+                  <p className="font-semibold">{blog.author.name}</p>
                   <div className="flex items-center space-x-4 text-sm text-muted-foreground">
                     <span>{formatDistanceToNow(new Date(blog.createdAt), { addSuffix: true })}</span>
                     <span className="flex items-center">
@@ -238,7 +221,6 @@ export default function BlogPostPage() {
                 <Button
                   variant={liked ? "default" : "outline"}
                   size="sm"
-                  onClick={handleLike}
                   className="flex items-center space-x-1"
                 >
                   <Heart className={`h-4 w-4 ${liked ? "fill-current" : ""}`} />
@@ -268,12 +250,12 @@ export default function BlogPostPage() {
             <CardHeader>
               <div className="flex items-start space-x-4">
                 <Avatar className="h-16 w-16">
-                  <AvatarImage src={userDetails?.avatar || "/placeholder.svg"} />
-                  <AvatarFallback>{userDetails?.name.charAt(0) || "P"}</AvatarFallback>
+                  <AvatarImage src={blog.author.avatar || "/placeholder.svg"} />
+                  <AvatarFallback>{blog.author.name.charAt(0) || "P"}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold">{userDetails?.name || "Unknown User"}</h3>
-                  <p className="text-muted-foreground mt-1">{userDetails?.bio || "Passionate writer and blogger"}</p>
+                  <h3 className="text-lg font-semibold">{blog.author.name || "Unknown User"}</h3>
+                  <p className="text-muted-foreground mt-1">{blog.author.bio || "Passionate writer and blogger"}</p>
                   <Button variant="outline" size="sm" className="mt-3">
                     Follow
                   </Button>
@@ -282,7 +264,7 @@ export default function BlogPostPage() {
             </CardHeader>
           </Card>
 
-          <CommentSection blogId={blog.id} />
+          <CommentSection blogId={blog._id} />
         </article>
       </main>
     </div>

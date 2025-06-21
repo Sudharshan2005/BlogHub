@@ -46,15 +46,15 @@ export default function ProfilePage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = sessionStorage.getItem('token')
     setIsAuthenticated(!!token)
   }, [])
 
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem('token')
+      const token = sessionStorage.getItem('token')
       if (!token) {
-        console.error('No token found in localStorage')
+        console.error('No token found in sessionStorage')
         toast({
           variant: "destructive",
           title: "Error",

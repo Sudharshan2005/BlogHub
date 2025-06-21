@@ -15,7 +15,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   
       const Id = new mongoose.Types.ObjectId(id);
   
-      const blog = await Blog.findById(Id);
+      const blog = await Blog.findById(Id).populate('author');
   
       if (!blog) {
         return NextResponse.json({ message: 'Blog not found' }, { status: 404 });

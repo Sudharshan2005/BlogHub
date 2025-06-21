@@ -68,15 +68,15 @@ export default function DashboardPage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const token = localStorage.getItem('token')
+    const token = sessionStorage.getItem('token')
     setIsAuthenticated(!!token)
   }, [])
 
   useEffect(() => {
     const fetchData = async () => {
-      const token = localStorage.getItem('token')
+      const token = sessionStorage.getItem('token')
       if (!token) {
-        console.error('No token found in localStorage')
+        console.error('No token found in sessionStorage')
         toast({
           variant: "destructive",
           title: "Error",
@@ -122,7 +122,7 @@ export default function DashboardPage() {
           return
         }
         setLoading(true)
-        const token = localStorage.getItem('token')
+        const token = sessionStorage.getItem('token')
         if (!token) {
           console.error('No token found')
           toast({ title: 'Error', description: 'Please log in again.', variant: 'destructive' })

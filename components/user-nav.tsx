@@ -38,10 +38,10 @@ export function UserNav() {
 
   useEffect(() => {
     const fetchData = async () => {
-        const token = localStorage.getItem('token');
+        const token = sessionStorage.getItem('token');
 
         if (!token) {
-            console.error('No token found in localStorage');
+            console.error('No token found in sessionStorage');
             return;
         }
         const res = await fetch('/api/user/fetch', {
@@ -59,7 +59,7 @@ export function UserNav() {
 }, []);
 
 const handlelogout = () => {
-  localStorage.removeItem('token');
+  sessionStorage.removeItem('token');
   router.push('/');
 }
 

@@ -9,8 +9,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { formatDistanceToNow } from "date-fns"
 import { Search, MoreHorizontal, Edit, Trash2, Eye, Calendar, Filter } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/hooks/use-toast"
 
 interface Blog {
+  _id: string
   id: string
   title: string
   excerpt: string
@@ -31,6 +34,8 @@ interface BlogManagementProps {
 
 export function BlogManagement({ blogs, filter, setFilter }: BlogManagementProps) {
   const [searchQuery, setSearchQuery] = useState("")
+  const router = useRouter()
+  const { toast } = useToast()
 
   const filteredBlogs = blogs.filter(
     (blog) =>
@@ -48,6 +53,39 @@ export function BlogManagement({ blogs, filter, setFilter }: BlogManagementProps
         return "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
       default:
         return "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300"
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    const confirmDelete = confirm("Are you sure you want to delete this blog?")
+    if (!confirmDelete) return
+
+    try {
+      const res = await fetch(`/api/blog/delete/${id}`, {
+        method: "DELETE",
+      })
+
+      if (res.ok) {
+        toast({
+          title: "Success",
+          description: "Blog Deeleted Successfully.",
+        })
+        router.refresh()
+      } else {
+        const data = await res.json()
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: String(data.message),
+        })
+      }
+    } catch (error) {
+      console.error("Error deleting blog:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed delete blog. Please try again.",
+      })
     }
   }
 
@@ -137,13 +175,7 @@ export function BlogManagement({ blogs, filter, setFilter }: BlogManagementProps
                           View
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link href={`/edit/${blog.id}`}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="text-destructive">
+                      <DropdownMenuItem onClick={() => handleDelete(blog._id)} className="text-destructive">
                         <Trash2 className="mr-2 h-4 w-4" />
                         Delete
                       </DropdownMenuItem>
