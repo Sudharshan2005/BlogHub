@@ -1,0 +1,15 @@
+name: Scheduled Blog Publish
+
+on:
+  schedule:
+    - cron: '*/1 * * * *'   # every minute
+  workflow_dispatch:        # manual trigger option
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Call API to publish scheduled blogs
+        run: |
+          curl -s -o /dev/null -w "%{http_code}" "https://blog-hub-one-pied.vercel.app/api/blog/scheduled-blogs"
