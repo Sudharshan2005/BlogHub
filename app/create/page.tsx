@@ -50,7 +50,7 @@ export default function CreateBlogPage() {
       localDate.getTime() - localDate.getTimezoneOffset() * 60000
     ).toISOString();
 
-    console.log("Scheduled UTC ISO:", utcISOString);
+    setScheduledDate(utcISOString);
   };
   
 
