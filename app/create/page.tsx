@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
@@ -37,69 +37,78 @@ export default function CreateBlogPage() {
   const [userDetails, setUserDetails] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-
   interface ScheduleChangeEvent extends React.ChangeEvent<HTMLInputElement> {}
 
   const handleScheduleChange = (e: ScheduleChangeEvent): void => {
-    const localValue: string = e.target.value; // e.g., "2025-06-28T17:08"
-    setScheduledDate(localValue); // still store it locally for the UI
+    const localValue: string = e.target.value;
+    if (!localValue) {
+      setScheduledDate(""); // Clear the scheduledDate if input is empty
+      return;
+    }
 
-    const localDate: Date = new Date(localValue);
+    const localDate = new Date(localValue);
+    if (isNaN(localDate.getTime())) {
+      // Invalid date, don't update state
+      toast({
+        variant: "destructive",
+        title: "Invalid Date",
+        description: "Please enter a valid date and time.",
+      });
+      return;
+    }
 
-    const utcISOString: string = new Date(
+    const utcISOString = new Date(
       localDate.getTime() - localDate.getTimezoneOffset() * 60000
     ).toISOString();
-
     setScheduledDate(utcISOString);
   };
-  
 
   useEffect(() => {
+    const token = sessionStorage.getItem('token')
+    setIsAuthenticated(!!token)
+  }, [])
+
+  useEffect(() => {
+    const fetchData = async () => {
       const token = sessionStorage.getItem('token')
-      setIsAuthenticated(!!token)
-    }, [])
-  
-    useEffect(() => {
-      const fetchData = async () => {
-        const token = sessionStorage.getItem('token')
-        if (!token) {
-          console.error('No token found in localStorage')
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Please log in to view your profile.",
-          })
-          return
-        }
-  
-        try {
-          const res = await fetch('/api/user/fetch', {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          })
-  
-          if (!res.ok) {
-            throw new Error('Failed to fetch user data')
-          }
-  
-          const data = await res.json()
-          setUserDetails(data.user)
-        } catch (error) {
-          console.error('Error fetching user:', error)
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Failed to load user data. Please try again.",
-          })
-        }
+      if (!token) {
+        console.error('No token found in sessionStorage')
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Please log in to view your profile.",
+        })
+        return
       }
-  
-      if (isAuthenticated) {
-        fetchData()
+
+      try {
+        const res = await fetch('/api/user/fetch', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        })
+
+        if (!res.ok) {
+          throw new Error('Failed to fetch user data')
+        }
+
+        const data = await res.json()
+        setUserDetails(data.user)
+      } catch (error) {
+        console.error('Error fetching user:', error)
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to load user data. Please try again.",
+        })
       }
-    }, [isAuthenticated, toast])
+    }
+
+    if (isAuthenticated) {
+      fetchData()
+    }
+  }, [isAuthenticated, toast])
 
   // Auto-generate slug from title
   useEffect(() => {
@@ -128,7 +137,6 @@ export default function CreateBlogPage() {
     if (!user) return
 
     try {
-      // Simulate saving draft to localStorage
       const draft = {
         title,
         excerpt,
@@ -170,6 +178,15 @@ export default function CreateBlogPage() {
       return
     }
 
+    if (isScheduled && !scheduledDate) {
+      toast({
+        title: "Error",
+        description: "Please set a valid schedule date.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setLoading(true)
 
     try {
@@ -185,8 +202,7 @@ export default function CreateBlogPage() {
         scheduledFor: isScheduled ? scheduledDate : null,
         createdAt: new Date().toISOString(),
       }
-      console.log(blogData);
-      
+
       const existingBlogs = JSON.parse(localStorage.getItem("user-blogs") || "[]")
       const newBlog = { ...blogData, id: Date.now().toString() }
       localStorage.setItem("user-blogs", JSON.stringify([newBlog, ...existingBlogs]))
@@ -195,12 +211,12 @@ export default function CreateBlogPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ author: userDetails?._id || "", ...blogData })
-      });
+      })
 
       if (!res.ok) {
-        throw new Error('Failed to create blog');
+        throw new Error('Failed to create blog')
       }
-      
+
       localStorage.removeItem("blog-draft")
 
       toast({
@@ -332,7 +348,7 @@ export default function CreateBlogPage() {
                     <Input
                       id="scheduledDate"
                       type="datetime-local"
-                      value={scheduledDate}
+                      value={scheduledDate ? new Date(scheduledDate).toISOString().slice(0, 16) : ""}
                       onChange={handleScheduleChange}
                     />
                   </div>
