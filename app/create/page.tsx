@@ -32,47 +32,55 @@ export default function CreateBlogPage() {
   const [category, setCategory] = useState("")
   const [loading, setLoading] = useState(false)
   const [isScheduled, setIsScheduled] = useState(false)
-  const [scheduledDate, setScheduledDate] = useState("")
+  const [scheduledDate, setScheduledDate] = useState("") // Store as YYYY-MM-DDThh:mm
   const [slug, setSlug] = useState("")
   const [userDetails, setUserDetails] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
+  // Get current local time in YYYY-MM-DDThh:mm format for min attribute
+  const getCurrentLocalDateTime = () => {
+    const now = new Date()
+    const year = now.getFullYear()
+    const month = String(now.getMonth() + 1).padStart(2, "0")
+    const day = String(now.getDate()).padStart(2, "0")
+    const hours = String(now.getHours()).padStart(2, "0")
+    const minutes = String(now.getMinutes()).padStart(2, "0")
+    return `${year}-${month}-${day}T${hours}:${minutes}`
+  }
+
   interface ScheduleChangeEvent extends React.ChangeEvent<HTMLInputElement> {}
 
   const handleScheduleChange = (e: ScheduleChangeEvent): void => {
-    const localValue: string = e.target.value;
+    const localValue: string = e.target.value // e.g., "2025-06-28T11:53"
     if (!localValue) {
-      setScheduledDate(""); // Clear the scheduledDate if input is empty
-      return;
+      setScheduledDate("")
+      return
     }
-  
-    const localDate = new Date(localValue);
+
+    const localDate = new Date(localValue)
     if (isNaN(localDate.getTime())) {
       toast({
         variant: "destructive",
         title: "Invalid Date",
         description: "Please enter a valid date and time.",
-      });
-      return;
+      })
+      return
     }
-  
-    // Directly convert to UTC ISO string
-    const utcISOString = localDate.toISOString();
-    console.log("Scheduled UTC ISO:", utcISOString);
-    setScheduledDate(utcISOString);
-  };
-  
+
+    // Store as local YYYY-MM-DDThh:mm format for the input
+    setScheduledDate(localValue)
+  }
 
   useEffect(() => {
-    const token = sessionStorage.getItem('token')
+    const token = sessionStorage.getItem("token")
     setIsAuthenticated(!!token)
   }, [])
 
   useEffect(() => {
     const fetchData = async () => {
-      const token = sessionStorage.getItem('token')
+      const token = sessionStorage.getItem("token")
       if (!token) {
-        console.error('No token found in sessionStorage')
+        console.error("No token found in sessionStorage")
         toast({
           variant: "destructive",
           title: "Error",
@@ -82,21 +90,21 @@ export default function CreateBlogPage() {
       }
 
       try {
-        const res = await fetch('/api/user/fetch', {
-          method: 'GET',
+        const res = await fetch("/api/user/fetch", {
+          method: "GET",
           headers: {
-            'Authorization': `Bearer ${token}`,
+            Authorization: `Bearer ${token}`,
           },
         })
 
         if (!res.ok) {
-          throw new Error('Failed to fetch user data')
+          throw new Error("Failed to fetch user data")
         }
 
         const data = await res.json()
         setUserDetails(data.user)
       } catch (error) {
-        console.error('Error fetching user:', error)
+        console.error("Error fetching user:", error)
         toast({
           variant: "destructive",
           title: "Error",
@@ -190,6 +198,11 @@ export default function CreateBlogPage() {
     setLoading(true)
 
     try {
+      // Convert scheduledDate to UTC ISO string for backend
+      const scheduledFor = isScheduled && scheduledDate
+        ? new Date(scheduledDate).toISOString()
+        : null
+
       const blogData = {
         title,
         excerpt,
@@ -199,7 +212,7 @@ export default function CreateBlogPage() {
         slug,
         published: publish && !isScheduled,
         scheduled: isScheduled,
-        scheduledFor: isScheduled ? scheduledDate : null,
+        scheduledFor,
         createdAt: new Date().toISOString(),
       }
 
@@ -207,14 +220,14 @@ export default function CreateBlogPage() {
       const newBlog = { ...blogData, id: Date.now().toString() }
       localStorage.setItem("user-blogs", JSON.stringify([newBlog, ...existingBlogs]))
 
-      const res = await fetch('/api/blog/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/blog/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ author: userDetails?._id || "", ...blogData })
       })
 
       if (!res.ok) {
-        throw new Error('Failed to create blog')
+        throw new Error("Failed to create blog")
       }
 
       localStorage.removeItem("blog-draft")
@@ -348,8 +361,9 @@ export default function CreateBlogPage() {
                     <Input
                       id="scheduledDate"
                       type="datetime-local"
-                      value={scheduledDate ? new Date(scheduledDate).toISOString().slice(0, 16) : ""}
+                      value={scheduledDate}
                       onChange={handleScheduleChange}
+                      min={getCurrentLocalDateTime()}
                     />
                   </div>
                 )}
