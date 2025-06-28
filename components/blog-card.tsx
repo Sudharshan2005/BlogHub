@@ -8,7 +8,7 @@ import { Eye, Heart, Clock } from "lucide-react"
 
 interface BlogCardProps {
   blog: {
-    id: string
+    _id: string
     title: string
     excerpt: string
     author: {
@@ -46,7 +46,7 @@ export function BlogCard({ blog }: BlogCardProps) {
             </p>
           </div>
         </div>
-        <Link href={`/blog/${blog.id}`}>
+        <Link href={`/blog/${blog._id}`}>
           <h3 className="text-lg font-semibold hover:text-primary cursor-pointer line-clamp-2">{blog.title}</h3>
         </Link>
       </CardHeader>

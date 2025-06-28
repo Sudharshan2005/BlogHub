@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { BlogCard } from "./blog-card"
 
 interface Blog {
-  id: string
+  _id: string
   title: string
   excerpt: string
   author: {
@@ -22,7 +22,7 @@ interface Blog {
 // Mock data for demonstration
 const mockFeaturedBlogs: Blog[] = [
   {
-    id: "1",
+    _id: "1",
     title: "The Future of Web Development: Trends to Watch in 2025",
     excerpt:
       "Explore the latest trends shaping the future of web development, from AI integration to new frameworks and tools that are revolutionizing how we build applications.",
@@ -38,7 +38,7 @@ const mockFeaturedBlogs: Blog[] = [
     image: "/placeholder.svg?height=200&width=400",
   },
   {
-    id: "2",
+    _id: "2",
     title: "Building Scalable React Applications: Best Practices",
     excerpt:
       "Learn how to structure and build React applications that can scale with your business needs. Discover patterns, tools, and techniques used by top companies.",
@@ -54,7 +54,7 @@ const mockFeaturedBlogs: Blog[] = [
     image: "/placeholder.svg?height=200&width=400",
   },
   {
-    id: "3",
+    _id: "3",
     title: "The Art of Technical Writing: Communicating Complex Ideas",
     excerpt:
       "Master the skills needed to write clear, engaging technical content that helps developers learn and grow. Tips from experienced technical writers.",
@@ -102,7 +102,7 @@ export function FeaturedBlogs() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {blogs.map((blog) => (
-        <BlogCard key={blog.id} blog={blog} />
+        <BlogCard key={blog._id} blog={blog} />
       ))}
     </div>
   )

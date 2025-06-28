@@ -239,7 +239,9 @@ export default function DashboardPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      {blogs.slice(0, 5).map((blog) => (
+                      {blogs
+                      .sort((a,b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                      .slice(0, 5).map((blog) => (
                         <div key={blog._id} className="border-b pb-4 last:border-b-0">
                           <h3 className="font-semibold hover:text-primary cursor-pointer">{blog.title}</h3>
                           <p className="text-sm text-muted-foreground mt-1">{blog.excerpt}</p>
