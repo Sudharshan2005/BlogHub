@@ -45,10 +45,9 @@ export default function CreateBlogPage() {
       setScheduledDate(""); // Clear the scheduledDate if input is empty
       return;
     }
-
+  
     const localDate = new Date(localValue);
     if (isNaN(localDate.getTime())) {
-      // Invalid date, don't update state
       toast({
         variant: "destructive",
         title: "Invalid Date",
@@ -56,12 +55,13 @@ export default function CreateBlogPage() {
       });
       return;
     }
-
-    const utcISOString = new Date(
-      localDate.getTime() - localDate.getTimezoneOffset() * 60000
-    ).toISOString();
+  
+    // Directly convert to UTC ISO string
+    const utcISOString = localDate.toISOString();
+    console.log("Scheduled UTC ISO:", utcISOString);
     setScheduledDate(utcISOString);
   };
+  
 
   useEffect(() => {
     const token = sessionStorage.getItem('token')

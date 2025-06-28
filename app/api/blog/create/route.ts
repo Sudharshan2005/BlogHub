@@ -28,6 +28,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ message: "Slug is already exist!" }, { status: 409 });
           }
 
+          console.log(scheduledFor)
+
           const blog = await Blog.create({ title, excerpt, content, author, tags, category, slug, published, scheduledFor, createdAt });
 
           return NextResponse.json({ message: "Blog Created Successfully", blog }, { status: 201 });
