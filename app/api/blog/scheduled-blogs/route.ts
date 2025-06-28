@@ -7,10 +7,14 @@ export async function GET() {
     await connectDB();
     const now = new Date();
 
+    const nowUtc = new Date();
+    const nowIst = new Date(nowUtc.getTime() + 5.5 * 60 * 60 * 1000); // +5:30 offset
+
     const result = await Blog.updateMany(
-      { published: false, scheduledFor: { $lte: now } },
-      { $set: { published: true, updatedAt: now } }
+      { published: false, scheduledFor: { $lte: nowIst } },
+      { $set: { published: true, updatedAt: nowUtc } }
     );
+
 
     return NextResponse.json({
       success: true,
