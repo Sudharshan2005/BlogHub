@@ -37,6 +37,23 @@ export default function CreateBlogPage() {
   const [userDetails, setUserDetails] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
 
+
+  interface ScheduleChangeEvent extends React.ChangeEvent<HTMLInputElement> {}
+
+  const handleScheduleChange = (e: ScheduleChangeEvent): void => {
+    const localValue: string = e.target.value; // e.g., "2025-06-28T17:08"
+    setScheduledDate(localValue); // still store it locally for the UI
+
+    const localDate: Date = new Date(localValue);
+
+    const utcISOString: string = new Date(
+      localDate.getTime() - localDate.getTimezoneOffset() * 60000
+    ).toISOString();
+
+    console.log("Scheduled UTC ISO:", utcISOString);
+  };
+  
+
   useEffect(() => {
       const token = sessionStorage.getItem('token')
       setIsAuthenticated(!!token)
@@ -316,7 +333,7 @@ export default function CreateBlogPage() {
                       id="scheduledDate"
                       type="datetime-local"
                       value={scheduledDate}
-                      onChange={(e) => setScheduledDate(e.target.value)}
+                      onChange={handleScheduleChange}
                     />
                   </div>
                 )}
