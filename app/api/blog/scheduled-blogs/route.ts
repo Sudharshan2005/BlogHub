@@ -5,16 +5,14 @@ import Blog from "@/models/Blog";
 export async function GET() {
   try {
     await connectDB();
-    const now = new Date();
-
     const nowUtc = new Date();
-    const nowIst = new Date(nowUtc.getTime() + 5.5 * 60 * 60 * 1000); // +5:30 offset
 
     const result = await Blog.updateMany(
-      { published: false, scheduledFor: { $lte: nowIst } },
+      { published: false, scheduledFor: { $lte: nowUtc } },
       { $set: { published: true, updatedAt: nowUtc } }
     );
 
+    console.log("Current UTC:", nowUtc, "Matched count:", result.matchedCount, "Modified count:", result.modifiedCount);
 
     return NextResponse.json({
       success: true,
