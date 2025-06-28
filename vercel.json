@@ -1,8 +1,6 @@
 {
-    "cron": [
-      {
-        "path": "/api/blog/scheduled-blogs",
-        "schedule": "* * * * *"
-      }
-    ]
-  }  
+    "crons": [{
+      "path": "/api/cron",
+      "schedule": "* * * * *"
+    }]
+}  
