@@ -14,6 +14,7 @@ import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { X, Save, Eye, Send, Calendar } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle } from "@/components/ui/dialog"
 
 interface User {
   _id: string;
@@ -24,21 +25,22 @@ export default function CreateBlogPage() {
   const { toast } = useToast()
   const router = useRouter()
 
-  const [title, setTitle] = useState("")
-  const [excerpt, setExcerpt] = useState("")
-  const [content, setContent] = useState("")
+  const [title, setTitle] = useState<string>("")
+  const [excerpt, setExcerpt] = useState<string>("")
+  const [content, setContent] = useState<string>("")
   const [tags, setTags] = useState<string[]>([])
-  const [tagInput, setTagInput] = useState("")
-  const [category, setCategory] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [isScheduled, setIsScheduled] = useState(false)
-  const [scheduledDate, setScheduledDate] = useState("") // Store as YYYY-MM-DDThh:mm
-  const [slug, setSlug] = useState("")
+  const [tagInput, setTagInput] = useState<string>("")
+  const [category, setCategory] = useState<string>("")
+  const [loading, setLoading] = useState<boolean>(false)
+  const [isScheduled, setIsScheduled] = useState<boolean>(false)
+  const [showSchedulingConfirmation, setShowSchedulingConfirmation] = useState<boolean>(false)
+  const [scheduledDate, setScheduledDate] = useState<string>("") // Store as YYYY-MM-DDThh:mm
+  const [slug, setSlug] = useState<string>("")
   const [userDetails, setUserDetails] = useState<User | null>(null)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
 
   // Get current local time in YYYY-MM-DDThh:mm format for min attribute
-  const getCurrentLocalDateTime = () => {
+  const getCurrentLocalDateTime = (): string => {
     const now = new Date()
     const year = now.getFullYear()
     const month = String(now.getMonth() + 1).padStart(2, "0")
@@ -123,7 +125,7 @@ export default function CreateBlogPage() {
     if (title) {
       const generatedSlug = title
         .toLowerCase()
-        .replace(/[^a-zA-Z0-9]/g, "-")
+        .replace(/[^a-z0-9]/g, "-")
         .replace(/-+/g, "-")
         .replace(/^-|-$/g, "")
       setSlug(generatedSlug)
@@ -176,7 +178,7 @@ export default function CreateBlogPage() {
     setTags(tags.filter((tag) => tag !== tagToRemove))
   }
 
-  const handleSubmit = async (publish = false) => {
+  const handleSubmit = async (publish: boolean = false) => {
     if (!title.trim() || !content.trim()) {
       toast({
         title: "Error",
@@ -192,6 +194,11 @@ export default function CreateBlogPage() {
         description: "Please set a valid schedule date.",
         variant: "destructive",
       })
+      return
+    }
+
+    if (publish && isScheduled) {
+      setShowSchedulingConfirmation(true)
       return
     }
 
@@ -246,6 +253,57 @@ export default function CreateBlogPage() {
       toast({
         title: "Error",
         description: "Failed to save blog. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleScheduleConfirm = async () => {
+    setLoading(true)
+    try {
+      const scheduledFor = scheduledDate ? new Date(scheduledDate).toISOString() : null
+      const blogData = {
+        title,
+        excerpt,
+        content,
+        tags,
+        category,
+        slug,
+        published: false,
+        scheduled: true,
+        scheduledFor,
+        createdAt: new Date().toISOString(),
+      }
+
+      const existingBlogs = JSON.parse(localStorage.getItem("user-blogs") || "[]")
+      const newBlog = { ...blogData, id: Date.now().toString() }
+      localStorage.setItem("user-blogs", JSON.stringify([newBlog, ...existingBlogs]))
+
+      const res = await fetch("/api/blog/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ author: userDetails?._id || "", ...blogData })
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to schedule blog")
+      }
+
+      localStorage.removeItem("blog-draft")
+
+      toast({
+        title: "Success",
+        description: "Blog scheduled successfully!",
+      })
+
+      setShowSchedulingConfirmation(false)
+      router.push("/dashboard")
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to schedule blog. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -424,6 +482,33 @@ export default function CreateBlogPage() {
             </Card>
           </div>
         </div>
+
+        {isScheduled && (
+          <Dialog open={showSchedulingConfirmation} onOpenChange={setShowSchedulingConfirmation}>
+            <DialogContent className="sm:max-w-md bg-[#1F1F1F] border-[#444444] text-white">
+              <DialogHeader>
+                <DialogTitle className="text-white">Schedule Confirmation</DialogTitle>
+                <DialogDescription className="text-[#D1D1D1]">
+                  Your post is being scheduled using GitHub Workflow. Please note that it may take 10 to 20 minutes from the scheduled time for the post to be published.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-end gap-4 mt-6">
+                <button
+                  onClick={() => setShowSchedulingConfirmation(false)}
+                  className="px-4 py-2 bg-transparent border border-[#444444] text-white rounded-md hover:bg-[#2A2A2A] transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleScheduleConfirm}
+                  className="px-4 py-2 bg-white text-black rounded-md transition-colors"
+                >
+                  Confirm
+                </button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </main>
     </div>
   )
